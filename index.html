@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Balap F1 Biru - Belajar Berhitung</title>
+<style>
+:root{--card:#fff;--ink:#000;--blue:#1e6bff;--ok:#2fb344;--sel:#dbe7ff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--card:#1b2340;--ink:#fff;--blue:#5b92ff;--sel:#2c3a6b}}
+:root[data-theme="dark"]{--card:#1b2340;--ink:#fff;--blue:#5b92ff;--sel:#2c3a6b}
+html,body{height:100%;margin:0;overflow:hidden;background:#87ceeb;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+#hud{position:fixed;left:12px;top:calc(env(safe-area-inset-top,0px) + 10px);background:var(--card);color:var(--ink);padding:6px 16px;border-radius:999px;font-size:22px;font-weight:700;box-shadow:0 3px 0 rgba(0,0,0,.2)}
+#ctl{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;justify-content:space-between;padding:0 16px;pointer-events:none}
+#ctl button{pointer-events:auto;width:92px;height:92px;border-radius:50%;border:4px solid #fff;background:var(--blue);color:#fff;font-size:44px;box-shadow:0 5px 0 rgba(0,0,0,.25);touch-action:none}
+#ctl button.on{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+#ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,30,80,.4);padding:12px}
+.card{background:var(--card);color:var(--ink);border-radius:28px;padding:20px 24px;text-align:center;max-width:min(94vw,540px);box-shadow:0 8px 0 rgba(0,0,0,.2)}
+.card h1{margin:0 0 8px;font-size:clamp(26px,6vw,38px)}
+.card p{margin:6px 0;font-size:clamp(16px,4vw,20px)}
+.q{font-size:clamp(32px,9vw,52px);line-height:1.25;margin:8px 0;word-break:break-word}
+.opts{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:12px}
+.btn{font:inherit;font-weight:700;font-size:clamp(30px,9vw,44px);min-width:84px;padding:10px 20px;border-radius:22px;border:0;background:var(--blue);color:#fff;box-shadow:0 5px 0 rgba(0,0,0,.25);cursor:pointer}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.btn.sm{font-size:clamp(22px,6vw,32px)}
+.btn.go{background:var(--ok);font-size:clamp(24px,7vw,34px);margin-top:10px}
+.say{background:#ffc21a;color:#14275c;font-size:22px;min-width:0;padding:4px 14px;margin-left:8px}
+.tag{display:inline-block;padding:4px 16px;border-radius:999px;font-weight:700;font-size:clamp(16px,4vw,20px)}
+.chip{display:inline-block;margin:3px;padding:3px 12px;border-radius:999px;font-weight:700;font-size:16px}
+.shake{animation:sh .4s}
+@keyframes sh{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+@media (prefers-reduced-motion:reduce){.shake{animation:none}}
+#th{position:fixed;z-index:5;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);width:48px;height:48px;border-radius:50%;border:0;background:var(--card);color:var(--ink);font-size:24px;box-shadow:0 3px 0 rgba(0,0,0,.2);cursor:pointer}
+.card{max-height:94vh;overflow:auto}
+.row{margin:8px 0}.row b{display:block;font-size:clamp(15px,4vw,18px);margin-bottom:4px}
+.pick{font:inherit;font-weight:700;font-size:clamp(16px,4.5vw,20px);margin:3px;padding:8px 14px;border-radius:16px;border:3px solid transparent;background:var(--sel);color:var(--ink);cursor:pointer}
+.pick.on{border-color:var(--blue)}
+</style></head>
+<body>
+<div id="hud">⭐ 0/25</div>
+<button id="th" aria-label="Ganti tema terang/gelap">🌙</button>
+<div id="ctl"><button id="bl" aria-label="Belok kiri">◀</button><button id="br" aria-label="Belok kanan">▶</button></div>
+<div id="ov"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const N=25,W=16,TAU=Math.PI*2;
+const rr=a=>420+40*Math.sin(3*a)+25*Math.cos(2*a);   // bentuk lintasan
+const EL=a=>14*Math.sin(2*a)+8*Math.sin(5*a+1);      // tinggi jalan (naik turun)
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const P=a=>[rr(a)*Math.cos(a),rr(a)*Math.sin(a)];
+const hd=a=>{const p=P(a),q=P(a+.002);return Math.atan2(q[0]-p[0],q[1]-p[1])};
+function G(x,z){const a=Math.atan2(z,x),d=Math.abs(Math.hypot(x,z)-rr(a)),t=cl((d-W/2-9)/80,0,1);return EL(a)*(1-t*t*(3-2*t))}
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x87ceeb);scene.fog=new THREE.Fog(0x87ceeb,120,430);
+const cam=new THREE.PerspectiveCamera(65,1,1,1600);
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.prepend(ren.domElement);ren.domElement.style.cssText='position:fixed;inset:0';
+function rs(){ren.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',rs);rs();
+const hemi=new THREE.HemisphereLight(0xffffff,0x4a7a3a,.95);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,.6);sun.position.set(40,80,30);scene.add(sun);
+const mk=(g,c,x,y,z)=>{const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:c}));m.position.set(x,y,z);return m};
+// tanah berbukit
+const tg=new THREE.PlaneGeometry(1500,1500,214,214);tg.rotateX(-Math.PI/2);
+const tp=tg.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,G(tp.getX(i),tp.getZ(i)));tg.computeVertexNormals();
+const roadG=new THREE.Group();scene.add(roadG);const gm=new THREE.MeshLambertMaterial({color:0x57b95a});roadG.add(new THREE.Mesh(tg,gm));
+// jalan
+function ribbon(o0,o1,col,dy,skip){const pos=[],idx=[],M=900;
+ for(let i=0;i<=M;i++){const a=i/M*TAU,r=rr(a),c=Math.cos(a),s=Math.sin(a),y=EL(a)+dy;pos.push((r+o0)*c,y,(r+o0)*s,(r+o1)*c,y,(r+o1)*s)}
+ for(let i=0;i<M;i++){if(skip&&skip(i))continue;const k=i*2;idx.push(k,k+1,k+2,k+1,k+3,k+2)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
+ roadG.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:col,side:THREE.DoubleSide})))}
+ribbon(-W/2,W/2,0x454b5a,.3);ribbon(-W/2,-W/2+.7,0xffffff,.5);ribbon(W/2-.7,W/2,0xffffff,.5);
+ribbon(-.25,.25,0xffffff,.5,i=>i%12>5);ribbon(-W/2,W/2,0xffffff,.55,i=>i>1);
+for(let i=0;i<90;i++){const a=Math.random()*TAU,o=(Math.random()<.5?-1:1)*(W/2+12+Math.random()*80),r=rr(a)+o,x=r*Math.cos(a),z=r*Math.sin(a),t=new THREE.Group();
+ t.add(mk(new THREE.CylinderGeometry(.5,.7,3,6),0x8b5a2b,0,1.5,0));t.add(mk(new THREE.ConeGeometry(2.4,6,7),0x1f8a3d,0,5.5,0));
+ t.position.set(x,G(x,z),z);t.scale.setScalar(.8+Math.random()*.9);roadG.add(t)}
+// mobil F1 biru
+const car=new THREE.Group(),B=0x1e6bff,D=0x0a2a7a,add=(g,c,x,y,z)=>car.add(mk(g,c,x,y,z));
+add(new THREE.BoxGeometry(1.2,.6,3),B,0,.6,0);add(new THREE.BoxGeometry(.7,.4,2.4),B,0,.5,2.5);
+add(new THREE.BoxGeometry(2.6,.12,.8),D,0,.3,3.6);add(new THREE.BoxGeometry(2.2,.12,.8),D,0,1.5,-1.8);
+add(new THREE.BoxGeometry(.1,.9,.6),D,0,1,-1.7);add(new THREE.BoxGeometry(2,.5,1.2),B,0,.55,-.1);
+add(new THREE.SphereGeometry(.38,12,10),0xffd23f,0,1.1,-.2);
+[[-1.2,1.9],[1.2,1.9],[-1.3,-1.4],[1.3,-1.4]].forEach(p=>{const w=mk(new THREE.CylinderGeometry(.52,.52,.6,16),0x15171c,p[0],.52,p[1]);w.rotation.z=Math.PI/2;car.add(w)});
+scene.add(car);
+// pesawat tempur
+const jet=new THREE.Group(),jd=(g,c,x,y,z,rx)=>{const m=mk(g,c,x,y,z);if(rx)m.rotation.x=rx;jet.add(m)};
+jd(new THREE.CylinderGeometry(.55,.4,5,12),0x9fb4d6,0,.9,0,Math.PI/2);jd(new THREE.ConeGeometry(.55,2,12),B,0,.9,3.5,Math.PI/2);
+jd(new THREE.BoxGeometry(6.4,.14,1.9),B,0,.8,-.3);jd(new THREE.BoxGeometry(2.6,.12,.9),D,0,.9,-2.3);
+jd(new THREE.BoxGeometry(.12,1.2,1.1),D,0,1.5,-2.2);jd(new THREE.SphereGeometry(.42,12,10),0xffd23f,0,1.4,.8);
+jd(new THREE.ConeGeometry(.3,1.2,8),0xff8a00,0,.9,-3.2,-Math.PI/2);jet.visible=false;scene.add(jet);
+// luar angkasa
+const spaceG=new THREE.Group(),stp=new Float32Array(7200);
+for(let i=0;i<2400;i++){const u=Math.random()*TAU,w=Math.acos(2*Math.random()-1);stp.set([800*Math.sin(w)*Math.cos(u),800*Math.cos(w),800*Math.sin(w)*Math.sin(u)],i*3)}
+const stg=new THREE.BufferGeometry();stg.setAttribute('position',new THREE.BufferAttribute(stp,3));
+const starsP=new THREE.Points(stg,new THREE.PointsMaterial({color:0xffffff,size:2.2,sizeAttenuation:false,fog:false}));starsP.visible=false;scene.add(starsP);
+[[0xe85d3a,70,0,20,0],[0xf2c46d,45,620,60,200],[0x4fa3ff,35,-600,30,-300],[0xb48cff,28,100,80,-650],[0x7be0a0,22,-300,50,600]].forEach(p=>{
+ spaceG.add(mk(new THREE.SphereGeometry(p[1],32,24),p[0],p[2],p[3],p[4]));
+ if(p[1]===45){const rg=mk(new THREE.RingGeometry(63,90,48),0xd9b46a,p[2],p[3],p[4]);rg.material.side=THREE.DoubleSide;rg.rotation.x=Math.PI/2.2;spaceG.add(rg)}});
+for(let i=0;i<60;i++){const a=Math.random()*TAU,r=rr(a)+(Math.random()<.5?-1:1)*(15+Math.random()*60),m=mk(new THREE.DodecahedronGeometry(1+Math.random()*3),0x8a8f9c,r*Math.cos(a),EL(a)+(Math.random()-.5)*30,r*Math.sin(a));m.rotation.set(Math.random()*3,Math.random()*3,0);spaceG.add(m)}
+const tkp=new Float32Array(1500);for(let i=0;i<500;i++){const a=i/500*TAU;tkp.set([rr(a)*Math.cos(a),EL(a)+.3,rr(a)*Math.sin(a)],i*3)}
+const tkg=new THREE.BufferGeometry();tkg.setAttribute('position',new THREE.BufferAttribute(tkp,3));
+spaceG.add(new THREE.Points(tkg,new THREE.PointsMaterial({color:0x66e0ff,size:4,sizeAttenuation:false,fog:false})));
+spaceG.visible=false;scene.add(spaceG);
+// jenis soal & warna gerbang
+const TY={c:{n:'Hitung',col:0xe53935,tx:'#fff'},a:{n:'Tambah',col:0x2fb344,tx:'#fff'},s:{n:'Kurang',col:0xff8a00,tx:'#fff'},m:{n:'Lebih banyak',col:0x8e44ff,tx:'#fff'},n:{n:'Angka berikutnya',col:0x00b8d4,tx:'#fff'},f:{n:'Cari angka',col:0xffd400,tx:'#14275c'}};
+const hex=c=>'#'+c.toString(16).padStart(6,'0');
+const SCH='fccfcnaacmasnmasc nam sanma'.replace(/ /g,'').slice(0,25);
+const WORD=['','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan','sepuluh'];
+function label(n,done){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+ g.fillStyle=done?'#2fb344':'#fff';g.beginPath();g.arc(64,64,60,0,7);g.fill();g.fillStyle=done?'#fff':'#14275c';g.font='bold '+(n>9&&!done?70:84)+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(done?'✓':n,64,70);return new THREE.CanvasTexture(c)}
+const cps=[];
+for(let i=0;i<N;i++){
+ const a=(i+1)/N*TAU,ty=SCH[i],m=new THREE.MeshLambertMaterial({color:TY[ty].col}),g=new THREE.Group();
+ [-1,1].forEach(s=>{const p=new THREE.Mesh(new THREE.BoxGeometry(.9,7,.9),m);p.position.set(s*(W/2+.5),3.5,0);g.add(p)});
+ const t=new THREE.Mesh(new THREE.BoxGeometry(W+2.4,1.6,1),m);t.position.y=7.2;g.add(t);
+ const l=new THREE.Sprite(new THREE.SpriteMaterial({map:label(i+1)}));l.scale.set(3.4,3.4,1);l.position.y=9.8;g.add(l);
+ const p=P(a);g.position.set(p[0],EL(a)+.3,p[1]);g.rotation.y=hd(a);scene.add(g);
+ cps.push({x:p[0],z:p[1],ty,l,done:false,i})}
+// soal
+const EM=['🍎','🍌','⭐','🚗','🎈','🐟'];
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+function mkQ(c){const i=c.i,ty=c.ty,lim=i<8?5:i<16?7:9,e=EM[rnd(0,5)];let text,ans,say,o=[];
+ if(ty==='c'){ans=rnd(1,lim);text=e.repeat(ans);say='Ada berapa?'}
+ else if(ty==='f'){ans=rnd(1,lim);text='Mana angka '+WORD[ans]+'?<br>'+e.repeat(ans);say='Mana angka '+WORD[ans]+'?'}
+ else if(ty==='n'){const n=rnd(1,lim-1);ans=n+1;text=n+' ➜ ?';say='Setelah angka '+WORD[n]+', angka berapa?'}
+ else if(ty==='a'){const a=rnd(1,lim-1),b=rnd(1,lim-a);ans=a+b;text=e.repeat(a)+' + '+e.repeat(b)+' = ?';say=a+' tambah '+b+' sama dengan berapa?'}
+ else if(ty==='s'){const a=rnd(2,lim),b=rnd(1,a-1);ans=a-b;text=e.repeat(a)+' − '+e.repeat(b)+' = ?';say=a+' dikurang '+b+' sama dengan berapa?'}
+ else{const s=new Set();while(s.size<3)s.add(rnd(1,Math.min(lim,8)));o=[...s];ans=Math.max(...o);text='Mana yang lebih banyak?';say=text}
+ if(ty!=='m'){const s=new Set([ans]);while(s.size<3)s.add(rnd(1,Math.max(lim,ans+1)));o=[...s]}
+ return{ty,e,text,ans,say,opts:o.sort(()=>Math.random()-.5),c}}
+function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='id-ID';u.rate=.85;speechSynthesis.speak(u)}catch(e){}}
+// status
+const ov=document.getElementById('ov'),hud=document.getElementById('hud');
+let st='menu',x,z,h,v,stars,cur,lock,ang=0,key={l:0,r:0},roll=0,veh='car',loc='road',theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+const show=html=>{ov.innerHTML='<div class="card" id="cd">'+html+'</div>';ov.style.display='flex'};
+const hide=()=>{ov.style.display='none'};
+function reset(){x=P(0)[0];z=0;h=hd(0);v=0;stars=0;lock=false;hud.textContent='⭐ 0/'+N;
+ cps.forEach(c=>{c.done=false;c.l.material.map=label(c.i+1);c.l.material.needsUpdate=true});
+ cam.position.set(x-Math.sin(h)*11,G(x,z)+5.5,z-Math.cos(h)*11)}
+function applyWorld(){const sx=loc==='space',dk=theme==='dark',sky=sx?0x02030f:dk?0x0b1230:0x87ceeb;
+ roadG.visible=!sx;spaceG.visible=sx;starsP.visible=sx;car.visible=veh==='car';jet.visible=veh==='jet';
+ scene.background=new THREE.Color(sky);scene.fog=new THREE.Fog(sky,sx?5000:120,sx?9000:430);
+ hemi.intensity=sx?.8:dk?.45:.95;sun.intensity=sx?.7:dk?.25:.6;gm.color.setHex(dk?0x1f4a2a:0x57b95a);
+ document.documentElement.dataset.theme=theme;document.getElementById('th').textContent=dk?'☀️':'🌙'}
+function opt(k,v){if(k==='veh')veh=v;else loc=v;menu()}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyWorld()}
+function menu(){st='menu';reset();applyWorld();
+ const lg=Object.values(TY).map(t=>'<span class="chip" style="background:'+hex(t.col)+';color:'+t.tx+'">'+t.n+'</span>').join('');
+ const pk=(k,v,l)=>'<button class="pick'+((k==='veh'?veh:loc)===v?' on':'')+'" onclick="opt(\''+k+'\',\''+v+'\')">'+l+'</button>';
+ show('<h1>'+(veh==='jet'?'✈️ Terbang Biru':'🏎️ Balap Mobil Biru')+'</h1><p>Lewati '+N+' gerbang warna-warni dan jawab soalnya!</p><p>'+lg+'</p><div class="row"><b>Pilih kendaraan</b>'+pk('veh','car','🏎️ Mobil')+pk('veh','jet','✈️ Pesawat tempur')+'</div><div class="row"><b>Pilih lokasi</b>'+pk('loc','road','🛣️ Jalanan')+pk('loc','space','🌌 Luar angkasa')+'</div><p>Tekan ◀ ▶ untuk belok.</p><button class="btn go" onclick="start()">Mulai!</button>')}
+function start(){reset();hide();st='play';speak('Ayo balapan!')}
+function ask(c){st='quiz';cur=mkQ(c);lock=false;const t=TY[c.ty];
+ show('<span class="tag" style="background:'+hex(t.col)+';color:'+t.tx+'">Gerbang '+(c.i+1)+' · '+t.n+'</span><div class="q">'+cur.text+'</div><p>'+(c.ty==='c'?'Ada berapa?':c.ty==='m'?'Pilih satu ya!':'Pilih jawabanmu')+'<button class="btn say" onclick="speak(cur.say)" aria-label="Dengarkan soal">🔊</button></p><div class="opts">'+cur.opts.map(o=>'<button class="btn'+(c.ty==='m'?' sm':'')+'" onclick="pick('+o+')">'+(c.ty==='m'?cur.e.repeat(o):o)+'</button>').join('')+'</div>');
+ speak(cur.say)}
+function pick(n){if(lock)return;const cd=document.getElementById('cd');
+ if(n===cur.ans){lock=true;const c=cur.c;c.done=true;c.l.material.map=label(c.i+1,1);c.l.material.needsUpdate=true;stars++;hud.textContent='⭐ '+stars+'/'+N;
+  if(stars===N){speak('Hebat sekali! Kamu juara!');show('<h1>🏆 Juara!</h1><p>Semua '+N+' gerbang selesai!</p><div class="q">⭐⭐⭐⭐⭐</div><button class="btn go" onclick="menu()">Main lagi</button>');st='end';return}
+  speak('Pintar! Benar!');show('<h1>🎉 Pintar!</h1><div class="q">⭐</div>');setTimeout(()=>{hide();st='play'},1300)}
+ else{cd.classList.remove('shake');void cd.offsetWidth;cd.classList.add('shake');speak('Ayo coba lagi ya')}}
+// kontrol
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='a')key.l=1;if(e.key==='ArrowRight'||e.key==='d')key.r=1});
+addEventListener('keyup',e=>{if(e.key==='ArrowLeft'||e.key==='a')key.l=0;if(e.key==='ArrowRight'||e.key==='d')key.r=0});
+[['bl','l'],['br','r']].forEach(([id,k])=>{const b=document.getElementById(id);
+ b.addEventListener('pointerdown',e=>{e.preventDefault();key[k]=1;b.classList.add('on')});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{key[k]=0;b.classList.remove('on')}))});
+// loop
+let last=performance.now();
+function loop(t){requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1000);last=t;
+ if(st==='menu'||st==='end'){ang+=dt*.06;const p=P(ang);x=p[0];z=p[1];h=hd(ang)}
+ let fx=Math.sin(h),fz=Math.cos(h),sl=(G(x+fx*3,z+fz*3)-G(x-fx*3,z-fz*3))/6;
+ if(st==='play'){
+  const on=loc==='space'||Math.abs(Math.hypot(x,z)-rr(Math.atan2(z,x)))<W/2+.5;
+  v+=(Math.max(8,(on?30:12)-sl*45)-v)*Math.min(1,dt*1.5);
+  h+=((key.l?1:0)-(key.r?1:0))*dt*1.5*Math.min(1,v/8+.3);
+  x+=Math.sin(h)*v*dt;z+=Math.cos(h)*v*dt;
+  const d=Math.hypot(x,z);if(d>700){x*=700/d;z*=700/d}
+  for(const c of cps){if(st==='play'&&!c.done&&Math.hypot(x-c.x,z-c.z)<9)ask(c)}
+  fx=Math.sin(h);fz=Math.cos(h)}
+ const gy=G(x,z),k=Math.min(1,dt*5);
+ const V=veh==='jet'?jet:car;roll+=((veh==='jet'?(key.r-key.l)*.5:0)-roll)*Math.min(1,dt*6);V.position.set(x,gy+(veh==='jet'?3:.3),z);V.rotation.set(-Math.atan(sl),h,roll,'YXZ');
+ cam.position.x+=(x-fx*11-cam.position.x)*k;cam.position.z+=(z-fz*11-cam.position.z)*k;cam.position.y+=(gy+5.5-cam.position.y)*k;
+ cam.lookAt(x+fx*8,G(x+fx*8,z+fz*8)+1.5,z+fz*8);
+ starsP.position.copy(cam.position);ren.render(scene,cam)}
+document.getElementById('th').onclick=toggleTheme;menu();requestAnimationFrame(loop);
+</script></body></html>
